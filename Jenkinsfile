@@ -1,36 +1,51 @@
 pipeline {
     agent any
+
     environment {
-        PATH = "/opt/maven/bin:$PATH"
+        MAVEN_HOME = "/opt/maven"
+        PATH = "${MAVEN_HOME}/bin:${env.PATH}"
     }
+
     stages {
-        stage("build") {
+
+        stage("Build") {
             steps {
-		echo "-------build started--------"
-                sh 'mvn clean package -Dmaven.test.skip=true'
-		echo "-------build completed--------"
+                echo "------- Build started --------"
+                sh 'mvn clean package'
+                echo "------- Build completed --------"
             }
         }
 
-        stage("test") {
+        stage("Test") {
             steps {
-		echo "-----unit test started--------"
+                echo "------- Unit test started --------"
+                sh 'mvn test'
                 sh 'mvn surefire-report:report'
-		echo "----unit test completed--------"
+                echo "------- Unit test completed --------"
             }
         }
 
-
-
-        stage("SonarQube analysis") {
+        stage("SonarQube Analysis") {
             environment {
                 scannerHome = tool 'rahimdemy-sonar-scanner'
             }
             steps {
                 withSonarQubeEnv('rahimdemy-sonarqube-server') {
-                    sh "${scannerHome}/bin/sonar-scanner"
+                    sh """
+                        ${scannerHome}/bin/sonar-scanner \
+                        -Dsonar.projectKey=irctc \
+                        -Dsonar.sources=src \
+                        -Dsonar.java.binaries=target
+                    """
                 }
             }
         }
-     }
+    }
+
+    post {
+        always {
+            junit 'target/surefire-reports/*.xml'
+        }
+    }
 }
+
